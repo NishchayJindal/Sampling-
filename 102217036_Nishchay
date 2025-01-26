@@ -1,0 +1,81 @@
+import pandas as pd
+from imblearn.over_sampling import SMOTE
+from sklearn.model_selection import train_test_split
+
+file_path = 'Creditcard_data.csv'
+dataset = pd.read_csv(file_path)
+
+print("First few rows of the dataset:")
+print(dataset.head())
+print("\nClass distribution before balancing:")
+print(dataset['Class'].value_counts())
+
+X = dataset.drop('Class', axis=1)
+y = dataset['Class']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+
+smote = SMOTE(random_state=42)
+X_train_balanced, y_train_balanced = smote.fit_resample(X_train, y_train)
+
+print("\nClass distribution after balancing:")
+print(pd.Series(y_train_balanced).value_counts())
+
+balanced_dataset = pd.concat([pd.DataFrame(X_train_balanced), pd.Series(y_train_balanced, name='Class')], axis=1)
+balanced_dataset.to_csv('balanced_dataset.csv', index=False)
+print("\nBalanced dataset saved as 'balanced_dataset.csv'.")
+from sklearn.model_selection import train_test_split
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.svm import SVC
+from sklearn.neighbors import KNeighborsClassifier
+from sklearn.metrics import accuracy_score
+import numpy as np
+
+balanced_dataset = pd.read_csv('balanced_dataset.csv')
+X_balanced = balanced_dataset.drop('Class', axis=1)
+y_balanced = balanced_dataset['Class']
+
+# Step 3: Sampling Techniqus
+samples = {}
+
+# Sampling 1: Random Sampling
+samples['Sampling1'] = balanced_dataset.sample(frac=0.5, random_state=42)
+
+stratified_sample, _ = train_test_split(balanced_dataset, test_size=0.5, random_state=42, stratify=y_balanced)
+samples['Sampling2'] = stratified_sample
+
+systematic_indices = np.arange(0, len(balanced_dataset), step=2)
+samples['Sampling3'] = balanced_dataset.iloc[systematic_indices]
+
+cluster_indices = np.random.choice(np.arange(0, len(balanced_dataset)), size=int(0.5 * len(balanced_dataset)), replace=False)
+samples['Sampling4'] = balanced_dataset.iloc[cluster_indices]
+
+samples['Sampling5'] = balanced_dataset.sample(frac=1.5, replace=True, random_state=42)
+
+models = {
+    'M1': LogisticRegression(max_iter=1000, random_state=42),
+    'M2': DecisionTreeClassifier(random_state=42),
+    'M3': RandomForestClassifier(random_state=42),
+    'M4': SVC(random_state=42),
+    'M5': KNeighborsClassifier()
+}
+
+results = {}
+
+for sampling_name, sample_data in samples.items():
+    X_sample = sample_data.drop('Class', axis=1)
+    y_sample = sample_data['Class']
+
+    X_train, X_test, y_train, y_test = train_test_split(X_sample, y_sample, test_size=0.2, random_state=42, stratify=y_sample)
+
+    for model_name, model in models.items():
+        model.fit(X_train, y_train)
+        y_pred = model.predict(X_test)
+        accuracy = accuracy_score(y_test, y_pred)
+        results[(sampling_name, model_name)] = accuracy
+
+print("\nModel Accuracies:")
+for (sampling, model), accuracy in results.items():
+    print(f"Sampling: {sampling}, Model: {model}, Accuracy: {accuracy:.2f}")
